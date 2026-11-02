@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1f2337">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="Bird Bounce — a wall-bouncing arcade game. Flap, bounce, dodge the spikes.">
+  <title>Bird Bounce</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="Bird Bounce game area"></canvas>
+
+  <!-- In-game HUD -->
+  <div id="hud" class="hidden">
+    <button id="btn-pause" class="icon-btn glass" aria-label="Pause"><i data-icon="pause"></i></button>
+    <div id="hud-loot" class="pill glass">
+      <i data-icon="crystal"></i><b id="hud-crystals">0</b>
+      <span id="hud-diamond-wrap" class="hidden"><i data-icon="diamond"></i><b id="hud-diamonds">0</b></span>
+    </div>
+  </div>
+
+  <!-- Main menu -->
+  <section id="screen-menu" class="screen dim">
+    <header class="bar">
+      <button id="btn-sound" class="icon-btn glass" aria-label="Toggle sound"><i data-icon="sound"></i></button>
+      <div class="wallet"></div>
+    </header>
+    <div class="hero">
+      <h1 class="logo"><span class="l1">Bird</span><span class="l2">Bounce</span></h1>
+      <div class="best-row"><i data-icon="crown"></i><span>Best</span><b id="menu-best">0</b></div>
+    </div>
+    <div class="menu-stack">
+      <button class="btn btn-xl" style="--c:#ff5a5f;--cd:#c73a43" data-mode="normal"><i data-icon="play"></i>Play</button>
+      <div class="mode-grid">
+        <button class="btn mode-card" style="--c:#ef476f;--cd:#a8203f" data-mode="hard"><i data-icon="skull"></i><span>Hard</span><small id="best-hard">Best 0</small></button>
+        <button class="btn mode-card" style="--c:#3b3f78;--cd:#23264e" data-mode="cave"><i data-icon="flash"></i><span>Cave</span><small id="best-cave">Best 0</small></button>
+        <button class="btn mode-card" style="--c:#06a77d;--cd:#04785a" data-mode="versus"><i data-icon="users"></i><span>2 Players</span><small>First to 3</small></button>
+        <button class="btn mode-card" style="--c:#5b6ee1;--cd:#3a49ae" data-nav="bots"><i data-icon="bot"></i><span>vs Bot</span><small id="bots-progress">0/6 beaten</small></button>
+      </div>
+      <div class="menu-row">
+        <button class="btn" style="--c:#ffb703;--cd:#c27f00" data-nav="shop"><i data-icon="bag"></i>Shop</button>
+        <button class="btn" style="--c:#9b5de5;--cd:#6c30bd" data-nav="achievements"><i data-icon="trophy"></i>Trophies<em id="ach-badge" class="badge hidden">0</em></button>
+      </div>
+    </div>
+    <p class="foot">Tap to flap · bounce off walls · avoid every spike</p>
+  </section>
+
+  <!-- Bot select -->
+  <section id="screen-bots" class="screen dim">
+    <header class="bar">
+      <button class="icon-btn glass" data-nav="menu" aria-label="Back"><i data-icon="back"></i></button>
+      <h2>vs Bot</h2>
+      <div class="wallet"></div>
+    </header>
+    <p class="sub">Beat each bot to unlock the next. First win pays out diamonds!</p>
+    <div id="bot-list" class="list"></div>
+  </section>
+
+  <!-- Shop -->
+  <section id="screen-shop" class="screen dim">
+    <header class="bar">
+      <button class="icon-btn glass" data-nav="menu" aria-label="Back"><i data-icon="back"></i></button>
+      <h2>Shop</h2>
+      <div class="wallet"></div>
+    </header>
+    <div class="preview card">
+      <canvas id="shop-canvas"></canvas>
+      <div class="pv-info">
+        <h3 id="pv-name">Cherry</h3>
+        <p id="pv-desc"></p>
+        <button id="pv-action" class="btn">Equip</button>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="skins">Birds</button>
+      <button class="tab" data-tab="flashlight">Flashlight</button>
+    </div>
+    <div id="shop-body"></div>
+  </section>
+
+  <!-- Achievements -->
+  <section id="screen-achievements" class="screen dim">
+    <header class="bar">
+      <button class="icon-btn glass" data-nav="menu" aria-label="Back"><i data-icon="back"></i></button>
+      <h2>Trophies</h2>
+      <div class="wallet"></div>
+    </header>
+    <div id="ach-summary" class="summary card"></div>
+    <div id="ach-list" class="list"></div>
+  </section>
+
+  <!-- Game over -->
+  <section id="screen-gameover" class="screen dim center">
+    <div class="card result pop">
+      <div id="go-newbest" class="ribbon hidden">New Best!</div>
+      <div id="go-mode" class="mode-tag">Normal</div>
+      <div class="big-score" id="go-score">0</div>
+      <div class="stats-row">
+        <div><small>Best</small><b id="go-best">0</b></div>
+        <div id="go-loot-wrap"><small>Collected</small><b id="go-loot">0</b></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" style="--c:#6c7293;--cd:#4a4f6d" id="go-menu"><i data-icon="home"></i>Menu</button>
+        <button class="btn" style="--c:#ff5a5f;--cd:#c73a43" id="go-retry"><i data-icon="retry"></i>Retry</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Match result -->
+  <section id="screen-match" class="screen dim center">
+    <div class="card result pop">
+      <h2 id="m-title">You Win!</h2>
+      <div class="vs-score"><span id="m-p1">3</span><i>–</i><span id="m-p2">1</span></div>
+      <p id="m-sub" class="sub"></p>
+      <div id="m-reward" class="reward hidden"></div>
+      <div class="btn-row wrap">
+        <button class="btn" style="--c:#6c7293;--cd:#4a4f6d" id="m-menu"><i data-icon="home"></i>Menu</button>
+        <button class="btn" style="--c:#5b6ee1;--cd:#3a49ae" id="m-next" hidden>Next Bot</button>
+        <button class="btn" style="--c:#06a77d;--cd:#04785a" id="m-again"><i data-icon="retry"></i>Rematch</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pause -->
+  <section id="screen-pause" class="screen dim center">
+    <div class="card result pop">
+      <h2>Paused</h2>
+      <div class="btn-col">
+        <button class="btn" style="--c:#06a77d;--cd:#04785a" id="p-resume"><i data-icon="play"></i>Resume</button>
+        <button class="btn" style="--c:#6c7293;--cd:#4a4f6d" id="p-quit"><i data-icon="home"></i>Quit to Menu</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="toasts" aria-live="polite"></div>
+  <div id="rotate-hint" class="hidden">Tip: turn your phone sideways for versus</div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/sessions.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "Bird Bounce",
+  "short_name": "Bird Bounce",
+  "description": "Flap, bounce off the walls and dodge the spikes.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#1f2337",
+  "theme_color": "#1f2337",
+  "icons": [{ "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
