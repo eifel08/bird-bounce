@@ -1,4 +1,5 @@
-/* Bird Bounce — canvas drawing: arenas, spikes, birds and skin accessories, diamonds, particles, darkness. */
+/* Bird Bounce — canvas drawing: pyramid arenas (brick walls, swords, stalactites, snakes, arrows),
+ * birds and skin accessories, diamonds, particles, darkness. */
 (function () {
   'use strict';
   const BB = (window.BB = window.BB || {});
@@ -7,8 +8,9 @@
   const FONT = 'Fredoka, ui-rounded, "Segoe UI", system-ui, sans-serif';
 
   const THEMES = {
-    normal: { bgs: ['#e9eef5', '#e2f2e6', '#f6eedd', '#f4e2ea', '#e6e2f6', '#ddf0f2', '#f3f0da', '#ece2f6'], spike: '#454b5e', band: '#3a3f50' },
-    hard: { bgs: ['#f4dada', '#f1d0d7', '#ebd6e8', '#f4dccc', '#ead0d0'], spike: '#5b2533', band: '#4a1c28' },
+    // Sandstone pyramid interior; the tint drifts every 5 points.
+    normal: { bgs: ['#f3e3c3', '#f1dcc0', '#efe2bf', '#f4dcc8', '#ebdcb9', '#f2e6cc'], mortar: 'rgba(120,88,45,0.13)', wall: '#b08850', wallDark: '#8a6a3c', stone: '#5d5246', stoneDark: '#3f372f' },
+    hard: { bgs: ['#e6c3a0', '#e2b998', '#dcb391', '#e4bd9a'], mortar: 'rgba(110,60,30,0.16)', wall: '#9c6b3f', wallDark: '#74492a', stone: '#4e4038', stoneDark: '#33291f' },
   };
 
   const R = (BB.Render = { THEMES, FONT });
@@ -83,6 +85,7 @@
     cg.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = cg;
     ctx.fillRect(0, 0, w, h);
+    R.bricks(ctx, 0, 0, w, h, th.mortar, 22, 46);
 
     const cr = Math.min(w * 0.3, 88);
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -91,9 +94,12 @@
 
     for (const it of a.items) R.diamond(ctx, it.x, it.y + Math.sin(it.t * 3) * 2, it.r, it.t, it.type, true);
 
-    R.bands(ctx, w, h, th);
-    R.wallSpikes(ctx, a.walls.left, w, th);
-    R.wallSpikes(ctx, a.walls.right, w, th);
+    R.ceiling(ctx, w, th);
+    R.floor(ctx, w, h, a.time);
+    R.sideWalls(ctx, w, h, th);
+    R.wallSpikes(ctx, a.walls.left, w);
+    R.wallSpikes(ctx, a.walls.right, w);
+    if (a.arrows) R.arrows(ctx, a.arrows, w, a.time);
 
     for (const b of a.birds || [a.bird]) R.trail(ctx, b.trail, b.skin, b.r, a.time);
     R.particles(ctx, a.particles);
@@ -106,49 +112,213 @@
     ctx.restore();
   };
 
-  R.bands = function (ctx, w, h, th) {
-    ctx.fillStyle = th.band;
-    ctx.fillRect(0, 0, w, C.CEIL_BAND);
-    ctx.fillRect(0, h - C.CEIL_BAND, w, C.CEIL_BAND);
-    ctx.fillRect(0, 0, 5, h);
-    ctx.fillRect(w - 5, 0, 5, h);
-    ctx.fillStyle = th.spike;
-    const sw = 26;
-    const n = Math.ceil(w / sw) + 1;
-    const x0 = (w - (n - 1) * sw) / 2;
-    ctx.beginPath();
-    for (let i = 0; i < n; i++) {
-      const x = x0 + i * sw;
-      ctx.moveTo(x - sw / 2, C.CEIL_BAND - 1);
-      ctx.lineTo(x, C.CEIL_TIP);
-      ctx.lineTo(x + sw / 2, C.CEIL_BAND - 1);
-      ctx.moveTo(x - sw / 2, h - C.CEIL_BAND + 1);
-      ctx.lineTo(x, h - C.CEIL_TIP);
-      ctx.lineTo(x + sw / 2, h - C.CEIL_BAND + 1);
-    }
-    ctx.fill();
-  };
-
-  R.wallSpikes = function (ctx, wall, w, th) {
-    const tris = wall.triangles(w);
-    if (!tris.length) return;
-    ctx.fillStyle = th.spike;
-    ctx.beginPath();
-    for (const t of tris) {
-      ctx.moveTo(t[0], t[1]);
-      ctx.lineTo(t[2], t[3]);
-      ctx.lineTo(t[4], t[5]);
-      ctx.closePath();
-    }
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  // Running-bond brick lines.
+  R.bricks = function (ctx, x0, y0, w, h, color, bh, bw) {
+    ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (const t of tris) {
-      ctx.moveTo(t[0], t[1]);
-      ctx.lineTo(t[2], t[3]);
+    for (let row = 0, y = y0; y <= y0 + h; row++, y += bh) {
+      ctx.moveTo(x0, y);
+      ctx.lineTo(x0 + w, y);
+      const off = row % 2 ? bw / 2 : 0;
+      for (let x = x0 - off; x < x0 + w; x += bw) {
+        if (x <= x0) continue;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, Math.min(y + bh, y0 + h));
+      }
     }
     ctx.stroke();
+  };
+
+  R.sideWalls = function (ctx, w, h, th) {
+    for (const x of [0, w - 8]) {
+      ctx.fillStyle = th.wall;
+      ctx.fillRect(x, 0, 8, h);
+      R.bricks(ctx, x, 0, 8, h, th.wallDark, 14, 16);
+    }
+  };
+
+  // Jagged stalactites; the longest tips reach the deadly line at CEIL_TIP.
+  const STALACTITES = [];
+  for (let i = 0, x = -6; i < 40; i++) {
+    const wdt = 14 + ((i * 37) % 13);
+    STALACTITES.push({ x, w: wdt, len: 0.62 + ((i * 53) % 39) / 100 });
+    x += wdt * 0.78;
+  }
+
+  R.ceiling = function (ctx, w, th) {
+    const g = ctx.createLinearGradient(0, 0, 0, C.CEIL_TIP);
+    g.addColorStop(0, th.stoneDark);
+    g.addColorStop(1, th.stone);
+    ctx.fillStyle = th.stoneDark;
+    ctx.fillRect(0, 0, w, C.CEIL_BAND - 4);
+    ctx.beginPath();
+    for (const s of STALACTITES) {
+      if (s.x > w) break;
+      const tip = C.CEIL_BAND - 6 + (C.CEIL_TIP - C.CEIL_BAND + 6) * s.len;
+      ctx.moveTo(s.x, C.CEIL_BAND - 6);
+      ctx.lineTo(s.x + s.w * 0.35, (C.CEIL_BAND + tip) / 2);
+      ctx.lineTo(s.x + s.w * 0.5, tip);
+      ctx.lineTo(s.x + s.w * 0.62, (C.CEIL_BAND + tip) / 2 + 2);
+      ctx.lineTo(s.x + s.w, C.CEIL_BAND - 6);
+    }
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  };
+
+  // Snake pit: sand floor with snakes rearing up to the deadly line.
+  const SNAKES = [
+    { x: 0.08, c: '#4c8c2b', d: '#2f5e18', ph: 0.0 },
+    { x: 0.27, c: '#c9a227', d: '#7a5f10', ph: 1.7 },
+    { x: 0.46, c: '#6a994e', d: '#386641', ph: 3.1 },
+    { x: 0.64, c: '#b5651d', d: '#6f3b0d', ph: 4.4 },
+    { x: 0.82, c: '#4c8c2b', d: '#2f5e18', ph: 5.6 },
+    { x: 0.99, c: '#c9a227', d: '#7a5f10', ph: 2.4 },
+  ];
+
+  R.floor = function (ctx, w, h, t) {
+    const top = h - C.CEIL_BAND;
+    ctx.fillStyle = '#c8a46a';
+    ctx.fillRect(0, top, w, C.CEIL_BAND);
+    ctx.fillStyle = 'rgba(120,85,40,0.35)';
+    for (let x = 6; x < w; x += 17) ctx.fillRect(x, top + 6 + ((x * 7) % 9), 3, 2);
+    for (const s of SNAKES) {
+      const bx = s.x * w;
+      const sway = Math.sin(t * 2 + s.ph) * 5;
+      const headX = bx + sway, headY = h - C.CEIL_TIP + 7 + Math.sin(t * 3 + s.ph) * 2;
+      const body = () => {
+        ctx.beginPath();
+        ctx.moveTo(bx - 26, h - 4);
+        ctx.bezierCurveTo(bx - 4, h - 2, bx + 16, h - 12, bx + 6, h - 20);
+        ctx.bezierCurveTo(bx - 4, h - 28, headX - 6, headY + 12, headX, headY + 2);
+      };
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = s.d;
+      ctx.lineWidth = 10;
+      body();
+      ctx.stroke();
+      ctx.strokeStyle = s.c;
+      ctx.lineWidth = 7;
+      body();
+      ctx.stroke();
+      ctx.setLineDash([2, 5]);
+      ctx.strokeStyle = 'rgba(255,240,180,0.6)';
+      ctx.lineWidth = 2.5;
+      body();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // head
+      ctx.fillStyle = s.c;
+      ctx.beginPath();
+      ctx.ellipse(headX, headY, 6.5, 5, 0, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = s.d;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#ffd60a';
+      circle(ctx, headX - 2.4, headY - 1.5, 1.6);
+      circle(ctx, headX + 2.4, headY - 1.5, 1.6);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(headX - 2.7, headY - 2.6, 0.7, 2.2);
+      ctx.fillRect(headX + 2.1, headY - 2.6, 0.7, 2.2);
+      if (Math.sin(t * 5 + s.ph * 3) > 0.3) {
+        ctx.strokeStyle = '#e63946';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(headX, headY - 4);
+        ctx.lineTo(headX, headY - 9);
+        ctx.lineTo(headX - 2, headY - 11);
+        ctx.moveTo(headX, headY - 9);
+        ctx.lineTo(headX + 2, headY - 11);
+        ctx.stroke();
+      }
+    }
+  };
+
+  // Swords thrust out of the walls (hitbox = the triangle from Wall.triangles).
+  R.wallSpikes = function (ctx, wall, w) {
+    for (const t of wall.triangles(w)) {
+      const bx = t[0], tipX = t[2], cy = t[3];
+      const hh = (t[5] - t[1]) / 2;
+      const s = tipX > bx ? 1 : -1;
+      const L = Math.abs(tipX - bx);
+      if (L < 1) continue;
+      ctx.save();
+      ctx.translate(bx, cy);
+      ctx.scale(s, 1);
+      const g = ctx.createLinearGradient(0, -hh, 0, hh);
+      g.addColorStop(0, '#f8f9fa');
+      g.addColorStop(0.5, '#ced4da');
+      g.addColorStop(1, '#868e96');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, -hh * 0.62);
+      ctx.lineTo(L * 0.72, -hh * 0.3);
+      ctx.lineTo(L, 0);
+      ctx.lineTo(L * 0.72, hh * 0.3);
+      ctx.lineTo(0, hh * 0.62);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#495057';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(73,80,87,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(4, 0);
+      ctx.lineTo(L * 0.7, 0);
+      ctx.stroke();
+      // crossguard at the wall
+      ctx.fillStyle = '#c9a227';
+      ctx.fillRect(0, -hh * 0.95, 5, hh * 1.9);
+      ctx.fillStyle = '#7a5f10';
+      ctx.fillRect(3.5, -hh * 0.95, 1.5, hh * 1.9);
+      ctx.restore();
+    }
+  };
+
+  // Arrows flying across the arena; while `warn` > 0 the arrow is only peeking out of the wall.
+  R.arrows = function (ctx, arrows, w, t) {
+    for (const a of arrows) {
+      const s = a.vx > 0 ? 1 : -1;
+      if (a.warn > 0) {
+        const wx = s > 0 ? 8 : w - 8;
+        const blink = 0.4 + 0.6 * Math.abs(Math.sin(t * 14));
+        const g = ctx.createRadialGradient(wx, a.y, 0, wx, a.y, 22);
+        g.addColorStop(0, `rgba(255,60,40,${0.55 * blink})`);
+        g.addColorStop(1, 'rgba(255,60,40,0)');
+        ctx.fillStyle = g;
+        circle(ctx, wx, a.y, 22);
+      }
+      const tip = a.warn > 0 ? (s > 0 ? 8 + 6 * (1 - a.warn) : w - 8 - 6 * (1 - a.warn)) : a.x;
+      ctx.save();
+      ctx.translate(tip, a.y);
+      ctx.scale(s, 1);
+      ctx.strokeStyle = '#7f5539';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-6, 0);
+      ctx.lineTo(-34, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#adb5bd';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-9, -4.5);
+      ctx.lineTo(-9, 4.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e63946';
+      ctx.beginPath();
+      ctx.moveTo(-28, 0);
+      ctx.lineTo(-36, -5);
+      ctx.lineTo(-33, 0);
+      ctx.lineTo(-36, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
   };
 
   // ---------- diamonds ----------

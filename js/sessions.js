@@ -6,8 +6,8 @@
   const save = () => BB.Storage.data;
 
   const MODE_INFO = {
-    normal: { label: 'NORMAL', hint: 'Blue diamonds hide by the spikes' },
-    hard: { label: 'HARD MODE', hint: 'Spikes on the move · no loot' },
+    normal: { label: 'NORMAL', hint: 'Blue diamonds hide by the swords' },
+    hard: { label: 'HARD MODE', hint: 'Moving swords · flying arrows · no loot' },
   };
 
   class SoloSession {
@@ -26,6 +26,7 @@
         diff: mode,
         theme: mode,
         items: mode === 'normal' ? { spawn: 0.8, type: 'blue' } : null,
+        arrows: mode,
         skin: BB.getSkin(save().equippedSkin),
         onEvent: (e) => this.onEvent(e),
       });
@@ -49,6 +50,7 @@
       const s = save();
       if (e.type === 'flap') BB.Audio.play('flap');
       else if (e.type === 'bounce') BB.Audio.play('bounce');
+      else if (e.type === 'arrow') BB.Audio.play('arrow');
       else if (e.type === 'collect') {
         s.blue++;
         s.stats.totalBlue++;

@@ -87,7 +87,8 @@
     }
     if ((scr === 'gameover' || scr === 'match') && (e.code === 'Space' || e.code === 'Enter')) {
       e.preventDefault();
-      BB.UI.retry();
+      if (scr === 'match') BB.UI.matchPrimary();
+      else BB.UI.retry();
       return;
     }
     if (scr !== null || !session) return;
@@ -111,6 +112,7 @@
   resize();
   BB.UI.init();
   BB.UI.goMenu();
+  BB.PWA.init();
   BB.Achievements.check();
   requestAnimationFrame(frame);
 })();

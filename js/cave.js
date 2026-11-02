@@ -1,5 +1,5 @@
-/* Bird Bounce — Cave mode: the bird falls through a dark shaft. Spikes and purple diamonds scroll up
- * from below along swaying, irregular paths. Tap to switch direction; the flashlight points straight down. */
+/* Bird Bounce — Cave mode: the bird falls through a dark shaft. Spikes scroll up from below along
+ * swaying, irregular paths, with purple diamonds scattered through the open space. Tap to switch direction; the flashlight points straight down. */
 (function () {
   'use strict';
   const BB = (window.BB = window.BB || {});
@@ -67,10 +67,14 @@
         ob = { type: 'ball', y, cx, rad: 15, amp: Math.min(cx - K.WALL - 30, w - K.WALL - 30 - cx, U.rand(10, 40 + tier * 30)), f: U.rand(1, 2.4), ph: Math.random() * TAU };
       }
       this.obstacles.push(ob);
-      if (Math.random() < 0.6) this.items.push({ ob, side: Math.random() < 0.5 ? -1 : 1, t: 0, r: 11, type: 'purple' });
       const spacing = [U.rand(230, 290), U.rand(195, 255), U.rand(165, 225)][tier];
       // Non-linear rhythm: every few rows bunch up or stretch out.
-      return spacing * (1 + 0.25 * Math.sin(this.dist * 0.004));
+      const step = spacing * (1 + 0.25 * Math.sin(this.dist * 0.004));
+      // Purple diamonds float at random spots in the open space between this row and the next.
+      if (Math.random() < 0.6) {
+        this.items.push({ x: U.rand(K.WALL + 25, w - K.WALL - 25), y: y + step * U.rand(0.3, 0.7), t: Math.random() * 6, r: 11, type: 'purple' });
+      }
+      return step;
     }
 
     ledgeExtent(ob) {
@@ -87,18 +91,8 @@
       return ob.cx + Math.sin(ob.ph + this.time * ob.f) * ob.amp;
     }
 
-    // Purple diamond hugs the spike tip it belongs to.
     itemPos(it) {
-      const ob = it.ob;
-      if (ob.type === 'ledge') {
-        const [x0, x1] = this.ledgeExtent(ob);
-        return { x: ob.side === 'left' ? x1 + 22 : x0 - 22, y: ob.y };
-      }
-      if (ob.type === 'double') {
-        const [[, l1], [r0]] = this.doubleExtents(ob);
-        return { x: it.side < 0 ? l1 + 22 : r0 - 22, y: ob.y };
-      }
-      return { x: this.ballX(ob) + it.side * (ob.rad + 22), y: ob.y };
+      return it;
     }
 
     // ---------- simulation ----------
@@ -139,12 +133,13 @@
       const dy = this.scroll * dt;
       this.dist += dy;
       for (const ob of this.obstacles) ob.y -= dy;
+      for (const it of this.items) it.y -= dy;
       for (const p of this.particles) p.y -= dy;
       for (const it of this.items) it.t += dt;
       this.nextY -= dy;
       while (this.nextY < this.h + 60) this.nextY += this.spawnRow(this.nextY);
       this.obstacles = this.obstacles.filter((ob) => ob.y > -60);
-      this.items = this.items.filter((it) => this.obstacles.includes(it.ob));
+      this.items = this.items.filter((it) => it.y > -40);
 
       if (!b.alive) return;
 

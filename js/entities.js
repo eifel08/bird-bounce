@@ -168,9 +168,12 @@
 
   class Arena {
     /**
-     * o: { x, w, seed, dir, diff: 'normal'|'hard', theme, items: {spawn, type} | null, skin, onEvent }
+     * o: { x, w, seed, dir, diff: 'normal'|'hard', theme, items: {spawn, type} | null, arrows: 'normal'|'hard'|null, skin, onEvent }
      */
     constructor(o) {
+      this.arrowMode = o.arrows || null;
+      this.arrows = [];
+      this.arrowT = 2.2;
       this.x = o.x || 0;
       this.w = o.w;
       this.h = C.H;
@@ -236,6 +239,7 @@
 
       const side = b.step(dt, this.w);
       if (b.hitsSpikes(this.walls, this.w, this.h)) return this.kill();
+      if (this.updateArrows(dt)) return this.kill();
       if (side) this.bounce(side);
 
       for (let i = this.items.length - 1; i >= 0; i--) {
@@ -246,6 +250,39 @@
           this.emit('collect', { item: it });
         }
       }
+    }
+
+    // Seconds between arrows, or null when arrows are off. Hard: always on. Normal: from score 25.
+    arrowInterval() {
+      if (this.arrowMode === 'hard') return Math.max(1.3, 3.0 - this.score * 0.03);
+      if (this.arrowMode === 'normal' && this.score >= 25) return Math.max(1.8, 4.5 - (this.score - 25) * 0.04);
+      return null;
+    }
+
+    // Arrows blink in the wall for `warn` seconds, then fly across. Returns true if one hits the bird.
+    updateArrows(dt) {
+      const iv = this.arrowInterval();
+      if (iv) {
+        this.arrowT -= dt;
+        if (this.arrowT <= 0) {
+          this.arrowT = iv * U.rand(0.8, 1.2);
+          const fromLeft = Math.random() < 0.5;
+          this.arrows.push({ y: U.rand(C.SLOT_TOP + 20, C.SLOT_BOTTOM - 20), warn: 0.8, x: fromLeft ? 8 : this.w - 8, vx: fromLeft ? 250 : -250 });
+        }
+      }
+      const b = this.bird, hr = b.r * C.HIT_SCALE;
+      for (const a of this.arrows) {
+        if (a.warn > 0) {
+          a.warn -= dt;
+          if (a.warn <= 0) this.emit('arrow');
+          continue;
+        }
+        a.x += a.vx * dt;
+        const tail = a.x - Math.sign(a.vx) * 34;
+        if (U.segDist2(b.x, b.y, a.x, a.y, tail, a.y) < hr * hr) return true;
+      }
+      this.arrows = this.arrows.filter((a) => a.x > -50 && a.x < this.w + 50);
+      return false;
     }
 
     bounce(side) {

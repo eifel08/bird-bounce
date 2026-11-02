@@ -10,6 +10,7 @@
   <title>Bird Bounce</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -48,6 +49,10 @@
       <div class="menu-row">
         <button class="btn" style="--c:#ffb703;--cd:#c27f00" data-nav="shop"><i data-icon="bag"></i>Shop</button>
         <button class="btn" style="--c:#9b5de5;--cd:#6c30bd" data-nav="achievements"><i data-icon="trophy"></i>Trophies<em id="ach-badge" class="badge hidden">0</em></button>
+      </div>
+      <div class="menu-row small-row">
+        <button class="btn btn-sm" style="--c:#6c7293;--cd:#4a4f6d" data-nav="credits"><i data-icon="heart"></i>Credits</button>
+        <button id="btn-install" class="btn btn-sm hidden" style="--c:#06a77d;--cd:#04785a"><i data-icon="download"></i>Install</button>
       </div>
     </div>
     <p class="foot">Tap to flap · grab diamonds by the spikes · never touch them</p>
@@ -95,6 +100,31 @@
     </header>
     <div id="ach-summary" class="summary card"></div>
     <div id="ach-list" class="list"></div>
+  </section>
+
+  <!-- Credits -->
+  <section id="screen-credits" class="screen dim">
+    <header class="bar">
+      <button class="icon-btn glass" data-nav="menu" aria-label="Back"><i data-icon="back"></i></button>
+      <h2>Credits</h2>
+    </header>
+    <div class="card credits">
+      <h3 class="credits-logo">Bird Bounce</h3>
+      <p class="credits-by">Designed &amp; developed by<br><b>Eitan Feldman</b></p>
+      <ul class="credits-list">
+        <li><span>Game design &amp; code</span><b>Eitan Feldman</b></li>
+        <li><span>Built with</span><b>HTML5 Canvas &amp; JavaScript</b></li>
+        <li><span>Font</span><b>Fredoka (Google Fonts)</b></li>
+        <li><span>Sound effects</span><b>Synthesised live (Web Audio)</b></li>
+      </ul>
+      <p class="sub">Enjoying the game? Support future updates:</p>
+      <a class="btn coffee" href="https://buymeacoffee.com/eitanfeldman" target="_blank" rel="noopener noreferrer"><span class="cup">☕</span>Buy Me a Coffee</a>
+      <div class="offline-row">
+        <button id="btn-install-2" class="btn btn-sm hidden" style="--c:#06a77d;--cd:#04785a"><i data-icon="download"></i>Install for offline play</button>
+        <p id="install-hint" class="sub hidden"></p>
+        <p id="offline-status" class="sub tiny"></p>
+      </div>
+    </div>
   </section>
 
   <!-- Game over -->
@@ -154,6 +184,7 @@
 <script src="js/versus.js"></script>
 <script src="js/cave.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/pwa.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

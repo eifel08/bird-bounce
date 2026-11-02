@@ -34,6 +34,8 @@
     crown: '<svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" fill="#ffc23d"/></svg>',
     lock: '<svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>',
     check: '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    heart: '<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.2C.8 8.3 3 4.5 6.7 4.5c2.1 0 3.6 1.2 4.3 2.4.7-1.2 2.2-2.4 4.3-2.4 3.7 0 5.9 3.8 4.3 7.3C19.5 16.4 12 21 12 21z" fill="currentColor"/></svg>',
+    download: '<svg viewBox="0 0 24 24"><path d="M12 3v11m0 0-4.5-4.5M12 14l4.5-4.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
     bird: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="13" rx="8" ry="7" fill="#ff5a5f"/><circle cx="15" cy="10.5" r="2.4" fill="#fff"/><circle cx="15.6" cy="10.6" r="1.1" fill="#222"/><path d="M19.5 12.5 23 13.5l-3.5 1.5z" fill="#ffb02e"/></svg>',
   };
 
@@ -99,7 +101,7 @@
       $('#p-quit').addEventListener('click', () => this.goMenu());
       $('#go-retry').addEventListener('click', () => this.retry());
       $('#go-menu').addEventListener('click', () => this.goMenu());
-      $('#m-again').addEventListener('click', () => this.retry());
+      $('#m-again').addEventListener('click', () => this.matchPrimary());
       $('#m-menu').addEventListener('click', () => this.goMenu());
       $('#pv-action').addEventListener('click', () => this.shopAction());
       $$('.tab').forEach((tab) =>
@@ -135,6 +137,7 @@
       if (name === 'shop') this.renderShop();
       if (name === 'achievements') this.renderAchievements();
       if (name === 'bots') this.renderBots();
+      if (name === 'credits') BB.PWA.renderStatus();
       this.show(name);
     },
 
@@ -439,6 +442,16 @@
       const [pt, pb] = info.points;
       const reward = $('#m-reward');
       reward.classList.add('hidden');
+      const idx = info.bot ? BB.BOTS.indexOf(info.bot) : -1;
+      this.nextBot = info.bot && info.won && idx < BB.BOTS.length - 1 ? idx + 1 : null;
+      const primary = $('#m-again');
+      if (this.nextBot != null) {
+        primary.innerHTML = `${icon('play')}Next Bot`;
+        this.btnColor(primary, '#5b6ee1', '#3a49ae');
+      } else {
+        primary.innerHTML = `${icon('retry')}${info.bot && info.won ? 'Play Again' : 'Rematch'}`;
+        this.btnColor(primary, '#06a77d', '#04785a');
+      }
       const score = (a, b, la, lb, wa, wb) =>
         `<div><span class="${wa ? 'win' : ''}">${a}</span><small>${la}</small></div><i>–</i><div><span class="${wb ? 'win' : ''}">${b}</span><small>${lb}</small></div>`;
       if (info.bot) {
@@ -458,6 +471,12 @@
       }
       this.refreshWallet();
       this.show('match');
+    },
+
+    // After a bot match: a win moves on to the next bot, a loss or tie offers a rematch.
+    matchPrimary() {
+      if (this.nextBot != null) this.startVersus(this.nextBot);
+      else this.retry();
     },
 
     // ---------- toasts ----------

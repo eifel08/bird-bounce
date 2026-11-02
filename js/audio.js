@@ -58,6 +58,10 @@
       tone({ freq: 1320, dur: 0.14, vol: 0.3, delay: 0.06 });
     },
     diamond: () => [988, 1319, 1568, 1976].forEach((f, i) => tone({ freq: f, dur: 0.14, vol: 0.28, type: 'triangle', delay: i * 0.06 })),
+    arrow: () => {
+      tone({ freq: 1200, to: 380, dur: 0.16, type: 'sawtooth', vol: 0.08 });
+      noise(0.12, 0.12);
+    },
     die: () => {
       tone({ freq: 420, to: 70, dur: 0.42, type: 'sawtooth', vol: 0.22 });
       noise(0.25, 0.35);
