@@ -70,7 +70,8 @@
     e.preventDefault();
     BB.Audio.unlock();
     if (!session || BB.UI.screen !== null) return;
-    session.press(e.clientX < view.w / 2 ? 0 : 1);
+    // 1 vs 1 split is functional only: top half = Player 1, bottom half = Player 2.
+    session.press(e.clientY < view.h / 2 ? 0 : 1);
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -95,7 +96,7 @@
       else if (P2_KEYS.includes(e.code)) session.press(1);
       else return;
     } else if (['Space', 'ArrowUp', 'KeyW', 'Enter'].concat(P1_KEYS).includes(e.code)) {
-      session.press(0);
+      session.press(1);
     } else return;
     e.preventDefault();
     BB.Audio.unlock();

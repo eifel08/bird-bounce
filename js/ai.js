@@ -22,7 +22,9 @@
     // Choose which free run of slots to aim for after each bounce.
     pickRun() {
       const b = this.a.bird;
-      const runs = U.freeRuns(this.targetWall().slots);
+      const wall = this.targetWall();
+      // In 1 vs 1 the next pattern is queued while the old one retracts; plan for the new one.
+      const runs = U.freeRuns(wall.pending || wall.slots);
       if (!runs.length) {
         this.run = null;
         return;

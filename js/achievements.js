@@ -1,4 +1,4 @@
-/* Bird Bounce — achievement evaluation and diamond rewards. */
+/* Bird Bounce — achievement evaluation and rewards (blue/purple diamonds and skins). */
 (function () {
   'use strict';
   const BB = (window.BB = window.BB || {});
@@ -10,20 +10,35 @@
     },
 
     tier(a) {
-      return a.reward >= 12 ? 'gold' : a.reward >= 5 ? 'silver' : 'bronze';
+      const v = (a.reward.blue || 0) + (a.reward.purple || 0) * 2 + (a.reward.skin ? 300 : 0);
+      return v >= 500 ? 'gold' : v >= 100 ? 'silver' : 'bronze';
     },
 
-    // Unlock everything whose condition is now met; returns newly unlocked achievements.
+    rewardText(r) {
+      const parts = [];
+      if (r.blue) parts.push(`+${r.blue.toLocaleString()} blue`);
+      if (r.purple) parts.push(`+${r.purple.toLocaleString()} purple`);
+      if (r.skin) parts.push(`${BB.getSkin(r.skin).name} skin`);
+      return parts.join(' · ');
+    },
+
+    // Unlock everything whose condition is now met; loops because one reward can satisfy another.
     check() {
       const s = BB.Storage.data;
       const newly = [];
-      for (const a of BB.ACHIEVEMENTS) {
-        if (s.achievements[a.id]) continue;
-        const [cur, goal] = a.progress(s);
-        if (cur >= goal) {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const a of BB.ACHIEVEMENTS) {
+          if (s.achievements[a.id]) continue;
+          const [cur, goal] = a.progress(s);
+          if (cur < goal) continue;
           s.achievements[a.id] = Date.now();
-          s.diamonds += a.reward;
+          s.blue += a.reward.blue || 0;
+          s.purple += a.reward.purple || 0;
+          BB.Storage.grantSkin(a.reward.skin);
           newly.push(a);
+          changed = true;
         }
       }
       if (newly.length) {
@@ -32,7 +47,7 @@
         newly.forEach((a, i) =>
           setTimeout(() => {
             BB.Audio.play('achieve');
-            BB.UI.toast({ icon: 'trophy', tier: this.tier(a), title: a.name, sub: `+${a.reward} diamonds` });
+            BB.UI.toast({ icon: 'trophy', tier: this.tier(a), title: a.name, sub: this.rewardText(a.reward) });
           }, 400 + i * 900)
         );
       }

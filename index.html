@@ -23,8 +23,7 @@
   <div id="hud" class="hidden">
     <button id="btn-pause" class="icon-btn glass" aria-label="Pause"><i data-icon="pause"></i></button>
     <div id="hud-loot" class="pill glass">
-      <i data-icon="crystal"></i><b id="hud-crystals">0</b>
-      <span id="hud-diamond-wrap" class="hidden"><i data-icon="diamond"></i><b id="hud-diamonds">0</b></span>
+      <i id="hud-gem" data-icon="blue"></i><b id="hud-count">0</b>
     </div>
   </div>
 
@@ -43,15 +42,15 @@
       <div class="mode-grid">
         <button class="btn mode-card" style="--c:#ef476f;--cd:#a8203f" data-mode="hard"><i data-icon="skull"></i><span>Hard</span><small id="best-hard">Best 0</small></button>
         <button class="btn mode-card" style="--c:#3b3f78;--cd:#23264e" data-mode="cave"><i data-icon="flash"></i><span>Cave</span><small id="best-cave">Best 0</small></button>
-        <button class="btn mode-card" style="--c:#06a77d;--cd:#04785a" data-mode="versus"><i data-icon="users"></i><span>2 Players</span><small>First to 3</small></button>
-        <button class="btn mode-card" style="--c:#5b6ee1;--cd:#3a49ae" data-nav="bots"><i data-icon="bot"></i><span>vs Bot</span><small id="bots-progress">0/6 beaten</small></button>
+        <button class="btn mode-card" style="--c:#06a77d;--cd:#04785a" data-mode="versus"><i data-icon="users"></i><span>1 vs 1</span><small>First to 3</small></button>
+        <button class="btn mode-card" style="--c:#5b6ee1;--cd:#3a49ae" data-nav="bots"><i data-icon="bot"></i><span>vs Bot</span><small id="bots-progress">0/30 beaten</small></button>
       </div>
       <div class="menu-row">
         <button class="btn" style="--c:#ffb703;--cd:#c27f00" data-nav="shop"><i data-icon="bag"></i>Shop</button>
         <button class="btn" style="--c:#9b5de5;--cd:#6c30bd" data-nav="achievements"><i data-icon="trophy"></i>Trophies<em id="ach-badge" class="badge hidden">0</em></button>
       </div>
     </div>
-    <p class="foot">Tap to flap · bounce off walls · avoid every spike</p>
+    <p class="foot">Tap to flap · grab diamonds by the spikes · never touch them</p>
   </section>
 
   <!-- Bot select -->
@@ -61,7 +60,7 @@
       <h2>vs Bot</h2>
       <div class="wallet"></div>
     </header>
-    <p class="sub">Beat each bot to unlock the next. First win pays out diamonds!</p>
+    <p class="sub">30 bots, each tougher than the last. First win pays blue diamonds — bosses also drop a skin. A tie counts as a loss.</p>
     <div id="bot-list" class="list"></div>
   </section>
 
@@ -124,7 +123,6 @@
       <div id="m-reward" class="reward hidden"></div>
       <div class="btn-row wrap">
         <button class="btn" style="--c:#6c7293;--cd:#4a4f6d" id="m-menu"><i data-icon="home"></i>Menu</button>
-        <button class="btn" style="--c:#5b6ee1;--cd:#3a49ae" id="m-next" hidden>Next Bot</button>
         <button class="btn" style="--c:#06a77d;--cd:#04785a" id="m-again"><i data-icon="retry"></i>Rematch</button>
       </div>
     </div>
@@ -142,7 +140,6 @@
   </section>
 
   <div id="toasts" aria-live="polite"></div>
-  <div id="rotate-hint" class="hidden">Tip: turn your phone sideways for versus</div>
 </div>
 
 <script src="js/config.js"></script>
@@ -154,6 +151,8 @@
 <script src="js/ai.js"></script>
 <script src="js/achievements.js"></script>
 <script src="js/sessions.js"></script>
+<script src="js/versus.js"></script>
+<script src="js/cave.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 </body>
