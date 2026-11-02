@@ -9,7 +9,11 @@
     GRAVITY: 1450,
     FLAP_V: -450,
     MAX_FALL: 760,
-    SPEED_X: 200,        // constant horizontal speed — never ramps up
+    SPEED_X: 200,        // starting horizontal speed
+    SPEED_GAIN: 0.0015,  // +0.15% horizontal speed per point of score...
+    SPEED_CAP_SCORE: 400, // ...up to this score (=> 1.6x)
+    ARROWS_FROM: 75,     // arrows start flying at this score (Normal, Hard, 1 vs 1, bots)
+    ARROW_END: 50,       // arrows crumble this far before the far wall
     BIRD_R: 15,
     HIT_SCALE: 0.78,     // forgiving hitbox
     CEIL_BAND: 22,
@@ -26,22 +30,33 @@
       VX: 185,           // horizontal speed; tapping flips direction
       WALL: 20,          // spiked side walls
       SCROLL0: 150,
-      SCROLL_MAX: 280,
+      SCROLL_MAX: 380,
     },
   };
 
-  // Wall spike density is driven purely by score (bounces).
+  // Horizontal speed: unchanged at the start, then creeps up with score.
+  BB.speedFor = function (score) {
+    return BB.CONFIG.SPEED_X * (1 + Math.min(score, BB.CONFIG.SPEED_CAP_SCORE) * BB.CONFIG.SPEED_GAIN);
+  };
+
+  // Wall sword density is driven purely by score (bounces) and keeps growing forever:
+  // 16+: 4-5, ~87: 5-6, ~158: 6-7, ~229: 7-8, ~300: 8-9 (all slots but one). One slot is always clear.
+  function swords(score) {
+    if (score <= 5) return { min: 1, max: 2, gap: 3 };
+    if (score <= 15) return { min: 2, max: 3, gap: 2 };
+    const min = Math.min(8, 4 + Math.floor((score - 16) / 71));
+    return { min, max: Math.min(BB.CONFIG.SLOTS - 1, min + 1), gap: 1 };
+  }
+
   BB.Difficulty = {
     normal(score) {
-      if (score <= 5) return { min: 1, max: 2, gap: 3, amp: 0, speed: 0 };
-      if (score <= 15) return { min: 2, max: 3, gap: 2, amp: 0, speed: 0 };
-      return { min: 4, max: 5, gap: 2, amp: 0, speed: 0 };
+      return Object.assign(swords(score), { amp: 0, speed: 0 });
     },
-    // Hard: tighter from the first bounce, and the whole wall pattern slides up and down.
+    // Hard: starts where Normal is at 30, and the whole wall pattern slides up and down.
     hard(score) {
-      if (score <= 5) return { min: 3, max: 4, gap: 2, amp: 14, speed: 1.6 };
-      if (score <= 15) return { min: 4, max: 5, gap: 2, amp: 20, speed: 2.0 };
-      return { min: 5, max: 6, gap: 2, amp: 26, speed: 2.4 };
+      const amp = score <= 5 ? 14 : score <= 15 ? 20 : 26;
+      const speed = score <= 5 ? 1.6 : score <= 15 ? 2.0 : 2.4;
+      return Object.assign(swords(score + 30), { amp, speed });
     },
   };
 
@@ -142,13 +157,13 @@
     'Eagle', 'Gyrfalcon', 'Harpy', 'Peregrine', 'Overlord',
   ];
   const TAGS = ['Rookie', 'Casual', 'Skilled', 'Expert', 'Master', 'Legend'];
-  const lerp = (a, b, t) => a + (b - a) * t;
 
-  // AI parameters: think = decision interval (also its lookahead), bias = flap threshold below target,
-  // tol = jitter on threshold, noise = aim error (px), blunder = chance per bounce to aim badly.
+  // Survival range: each round the bot picks a random death score in [min, max] and flies
+  // flawlessly until it reaches it. min grows ~14.4% per bot (4 -> 200); width = max(4, 25% of min).
   BB.BOTS = BOT_NAMES.map((name, i) => {
     const boss = i % 5 === 4;
-    const t = Math.min(1, i / 29 + (boss ? 0.02 : 0));
+    const min = Math.round(4 * Math.pow(50, i / 29));
+    const max = min + Math.max(4, Math.round(min * 0.25));
     const bossSkin = boss ? BB.SKINS.find((s) => s.unlock.boss === i) : null;
     const hue = (45 + i * 47) % 360;
     return {
@@ -158,12 +173,8 @@
       tag: boss ? 'Boss' : TAGS[Math.floor(i / 5)],
       reward: nice(10 * Math.pow(1.19, i)),
       skinReward: bossSkin ? bossSkin.id : null,
-      think: lerp(0.17, 0.024, Math.pow(t, 0.7)),
-      bias: 35,
-      tol: lerp(34, 2, Math.pow(t, 0.7)),
-      noise: lerp(75, 2, Math.pow(t, 0.6)),
-      blunder: 0.45 * Math.pow(1 - t, 2.2) + 0.004,
-      cool: lerp(0.21, 0.13, t),
+      min,
+      max,
       skin: bossSkin || { body: `hsl(${hue},62%,55%)`, belly: `hsl(${hue},70%,88%)`, wing: `hsl(${hue},60%,38%)`, beak: '#ffb703', acc: ['antenna'] },
     };
   });

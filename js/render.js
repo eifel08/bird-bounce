@@ -293,7 +293,9 @@
         circle(ctx, wx, a.y, 22);
       }
       const tip = a.warn > 0 ? (s > 0 ? 8 + 6 * (1 - a.warn) : w - 8 - 6 * (1 - a.warn)) : a.x;
+      const left = s > 0 ? w - C.ARROW_END - tip : tip - C.ARROW_END; // fades out before the far wall
       ctx.save();
+      ctx.globalAlpha = U.clamp(left / 40, 0.15, 1);
       ctx.translate(tip, a.y);
       ctx.scale(s, 1);
       ctx.strokeStyle = '#7f5539';

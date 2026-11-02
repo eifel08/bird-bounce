@@ -1,5 +1,5 @@
 /* Bird Bounce — service worker: precaches the whole game so it runs fully offline. */
-const CACHE = 'bird-bounce-v3';
+const CACHE = 'bird-bounce-v4';
 const FONT_CACHE = 'bird-bounce-fonts';
 
 const ASSETS = [

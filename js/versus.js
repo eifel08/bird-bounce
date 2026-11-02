@@ -11,7 +11,8 @@
 
   class SharedArena extends BB.Arena {
     constructor(o) {
-      super({ w: C.SOLO_W, seed: o.seed, diff: 'normal', theme: 'normal', skin: o.skins[BOTTOM], onEvent: o.onEvent });
+      super({ w: C.SOLO_W, seed: o.seed, diff: 'normal', theme: 'normal', arrows: 'normal', skin: o.skins[BOTTOM], onEvent: o.onEvent });
+      this.mirrorArrows = true;
       const w = this.w, h = this.h;
       const top = new BB.Bird(w / 2, h / 2 - 60, -1, o.skins[TOP]);
       top.g = -1;
@@ -57,13 +58,37 @@
           this.wallSparks(side, b);
         }
       });
-      // Both birds always reach the walls on the same frame (mirrored horizontal motion).
-      if (bounced) this.bounceBoth();
+      if (this.started) {
+        this.tickArrows(dt);
+        this.birds.forEach((b, i) => {
+          if (b.alive && !b.frozen && this.arrowHits(b)) {
+            this.kill(b);
+            this.emit('dieP', { player: i });
+          }
+        });
+      }
+      // Mirrored horizontal motion means both birds reach their walls together, but float rounding can
+      // put one a frame behind. Bounce the laggard now so each wall counts exactly once.
+      if (bounced) {
+        for (const b of this.birds) {
+          if (!b.alive || b.frozen) continue;
+          const gap = b.vx > 0 ? this.w - (b.x + b.r) : b.x - b.r;
+          if (gap < 4) {
+            b.x = b.vx > 0 ? this.w - b.r : b.r;
+            b.vx = -b.vx;
+            b.dir = -b.dir;
+            b.squash = 1;
+          }
+        }
+        this.bounceBoth();
+      }
     }
 
     // The bottom player's target wall gets the pattern; the other wall gets it rotated 180°.
     bounceBoth() {
       this.score++;
+      const speed = BB.speedFor(this.score);
+      for (const b of this.birds) b.vx = Math.sign(b.vx) * speed;
       const p = this.generate(this.score);
       const lead = this.birds[BOTTOM].alive ? this.birds[BOTTOM] : this.birds[TOP];
       const leadHeadsRight = lead === this.birds[BOTTOM] ? lead.vx > 0 : lead.vx < 0;
@@ -75,7 +100,8 @@
     }
   }
 
-  // Lets the standard bot steer the upside-down top bird by presenting the world rotated.
+  // Lets the bot planner steer the upside-down top bird by presenting the world rotated 180°
+  // around the vertical axis: y -> H - y, so gravity points "down" again from its point of view.
   function flippedView(arena, i) {
     const H = arena.h;
     const flip = (w) => ({
@@ -93,6 +119,9 @@
         return { x: b.x, y: H - b.y, vx: b.vx, vy: -b.vy, r: b.r, alive: b.alive };
       },
       walls: { left: flip(arena.walls.left), right: flip(arena.walls.right) },
+      get arrows() {
+        return arena.arrows.map((a) => ({ x: a.x, y: H - a.y, vx: a.vx, warn: a.warn }));
+      },
       get started() {
         return arena.started;
       },
@@ -156,6 +185,7 @@
       if (e.type === 'flap' && !(this.bot && e.player === TOP)) BB.Audio.play('flap');
       else if (e.type === 'bounce') BB.Audio.play('bounce');
       else if (e.type === 'die') BB.Audio.play('die');
+      else if (e.type === 'arrow') BB.Audio.play('arrow');
     }
 
     update(dt) {

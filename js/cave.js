@@ -33,8 +33,10 @@
       this.onEvent(Object.assign({ type }, data));
     }
 
+    // Ramps quickly to 280 by depth ~59, then keeps creeping up toward SCROLL_MAX.
     speed() {
-      return Math.min(K.SCROLL_MAX, K.SCROLL0 + this.score * 2.2);
+      const s = this.score;
+      return Math.min(K.SCROLL_MAX, K.SCROLL0 + Math.min(s, 59) * 2.2 + Math.max(0, s - 59) * 0.5);
     }
 
     flap() {
@@ -50,24 +52,26 @@
 
     // ---------- level generation ----------
     // Rows get closer together and wobblier with depth; gaps always leave room to pass.
+    // Past depth 30 everything keeps tightening (`deep` 0 -> 1 over depths 30..200), up to a passable cap.
     spawnRow(y) {
       const s = this.score, w = this.w;
       const tier = s < 10 ? 0 : s < 30 ? 1 : 2;
+      const deep = U.clamp((s - 30) / 170, 0, 1);
       const roll = Math.random();
       let ob;
-      if (tier >= 1 && roll < (tier === 1 ? 0.25 : 0.4)) {
-        const gapW = U.rand(128, 150);
+      if (tier >= 1 && roll < (tier === 1 ? 0.25 : 0.4 + 0.2 * deep)) {
+        const gapW = U.rand(128 - 18 * deep, 150 - 20 * deep);
         const gx = U.rand(K.WALL + gapW / 2 + 30, w - K.WALL - gapW / 2 - 30);
-        ob = { type: 'double', y, gx, gapW, amp: tier === 2 ? U.rand(20, 45) : 0, f: U.rand(0.8, 1.6), ph: Math.random() * TAU };
-      } else if (roll < 0.62) {
+        ob = { type: 'double', y, gx, gapW, amp: tier === 2 ? U.rand(20, 45) * (1 + 0.5 * deep) : 0, f: U.rand(0.8, 1.6), ph: Math.random() * TAU };
+      } else if (roll < 0.62 + 0.1 * deep) {
         const side = Math.random() < 0.5 ? 'left' : 'right';
-        ob = { type: 'ledge', y, side, len: U.rand(80, 200), osc: tier ? U.rand(15, 30 + tier * 10) : 0, f: U.rand(1, 2.2), ph: Math.random() * TAU };
+        ob = { type: 'ledge', y, side, len: U.rand(80, 200 + 15 * deep), osc: tier ? U.rand(15, 30 + tier * 10 + 15 * deep) : 0, f: U.rand(1, 2.2), ph: Math.random() * TAU };
       } else {
         const cx = U.rand(K.WALL + 55, w - K.WALL - 55);
-        ob = { type: 'ball', y, cx, rad: 15, amp: Math.min(cx - K.WALL - 30, w - K.WALL - 30 - cx, U.rand(10, 40 + tier * 30)), f: U.rand(1, 2.4), ph: Math.random() * TAU };
+        ob = { type: 'ball', y, cx, rad: 15, amp: Math.min(cx - K.WALL - 30, w - K.WALL - 30 - cx, U.rand(10, 40 + tier * 30 + 30 * deep)), f: U.rand(1, 2.4), ph: Math.random() * TAU };
       }
       this.obstacles.push(ob);
-      const spacing = [U.rand(230, 290), U.rand(195, 255), U.rand(165, 225)][tier];
+      const spacing = [U.rand(230, 290), U.rand(195, 255), U.rand(165, 225) * (1 - 0.22 * deep)][tier];
       // Non-linear rhythm: every few rows bunch up or stretch out.
       const step = spacing * (1 + 0.25 * Math.sin(this.dist * 0.004));
       // Purple diamonds float at random spots in the open space between this row and the next.

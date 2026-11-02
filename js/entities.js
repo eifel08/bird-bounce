@@ -74,6 +74,11 @@
       }
       return out;
     }
+
+    // Swords sliding back into the wall (after a bounce) can no longer hurt.
+    hitTriangles(w) {
+      return this.target === 0 ? [] : this.triangles(w);
+    }
   }
 
   class Bird {
@@ -135,7 +140,7 @@
     hitsSpikes(walls, w, h) {
       const hr = this.r * C.HIT_SCALE;
       for (const side of ['left', 'right']) {
-        for (const tri of walls[side].triangles(w)) if (U.circleTri(this.x, this.y, hr, tri)) return true;
+        for (const tri of walls[side].hitTriangles(w)) if (U.circleTri(this.x, this.y, hr, tri)) return true;
       }
       return this.y - hr < C.CEIL_TIP || this.y + hr > h - C.CEIL_TIP;
     }
@@ -239,7 +244,8 @@
 
       const side = b.step(dt, this.w);
       if (b.hitsSpikes(this.walls, this.w, this.h)) return this.kill();
-      if (this.updateArrows(dt)) return this.kill();
+      this.tickArrows(dt);
+      if (this.arrowHits(b)) return this.kill();
       if (side) this.bounce(side);
 
       for (let i = this.items.length - 1; i >= 0; i--) {
@@ -252,41 +258,77 @@
       }
     }
 
-    // Seconds between arrows, or null when arrows are off. Hard: always on. Normal: from score 25.
+    // Seconds between arrows, or null when arrows are off. Arrows start at ARROWS_FROM in every wall mode.
     arrowInterval() {
-      if (this.arrowMode === 'hard') return Math.max(1.3, 3.0 - this.score * 0.03);
-      if (this.arrowMode === 'normal' && this.score >= 25) return Math.max(1.8, 4.5 - (this.score - 25) * 0.04);
-      return null;
+      if (!this.arrowMode || this.score < C.ARROWS_FROM) return null;
+      const base = this.arrowMode === 'hard' ? 3.2 : 4.0;
+      return Math.max(1.5, base - (this.score - C.ARROWS_FROM) * 0.015);
     }
 
-    // Arrows blink in the wall for `warn` seconds, then fly across. Returns true if one hits the bird.
-    updateArrows(dt) {
+    // Arrows blink in the wall for `warn` seconds, then fly across. In 1 vs 1 every arrow gets a
+    // mirror twin (other wall, flipped height) so both players face the same threat.
+    tickArrows(dt) {
       const iv = this.arrowInterval();
       if (iv) {
         this.arrowT -= dt;
         if (this.arrowT <= 0) {
           this.arrowT = iv * U.rand(0.8, 1.2);
           const fromLeft = Math.random() < 0.5;
-          this.arrows.push({ y: U.rand(C.SLOT_TOP + 20, C.SLOT_BOTTOM - 20), warn: 0.8, x: fromLeft ? 8 : this.w - 8, vx: fromLeft ? 250 : -250 });
+          const y = this.arrowHeight(fromLeft);
+          const shoot = (yy, left) => this.arrows.push({ y: yy, warn: 0.8, x: left ? 8 : this.w - 8, vx: left ? 250 : -250 });
+          shoot(y, fromLeft);
+          if (this.mirrorArrows) shoot(this.h - y, !fromLeft);
         }
       }
-      const b = this.bird, hr = b.r * C.HIT_SCALE;
       for (const a of this.arrows) {
         if (a.warn > 0) {
           a.warn -= dt;
           if (a.warn <= 0) this.emit('arrow');
-          continue;
-        }
-        a.x += a.vx * dt;
+        } else a.x += a.vx * dt;
+      }
+      // Arrows crumble ARROW_END px before the far wall, so they never block the gap a bird is entering.
+      this.arrows = this.arrows.filter((a) => {
+        const done = a.vx > 0 ? a.x > this.w - C.ARROW_END : a.x < C.ARROW_END;
+        if (done) this.dust(a.x, a.y);
+        return !done;
+      });
+    }
+
+    dust(x, y) {
+      for (let i = 0; i < 6; i++) {
+        const ang = Math.random() * TAU, sp = U.rand(30, 90);
+        this.addParticle({ kind: 'spark', x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, g: 200, life: 0.4, max: 0.4, size: U.rand(2, 3.5), color: '#b08850' });
+      }
+    }
+
+    // Arrows launch from a sword slot (never out of the open gap a bird must fly through), preferring
+    // heights where the far wall has a sword too, so they can't block either wall's gap.
+    arrowHeight(fromLeft) {
+      const src = fromLeft ? this.walls.left : this.walls.right;
+      const dst = fromLeft ? this.walls.right : this.walls.left;
+      const ss = src.pending || src.slots, ds = dst.pending || dst.slots;
+      const idx = [...Array(C.SLOTS).keys()];
+      let pool = idx.filter((i) => ss[i] && ds[i]);
+      if (!pool.length) pool = idx.filter((i) => ss[i]);
+      if (!pool.length) return U.rand(C.SLOT_TOP + 20, C.SLOT_BOTTOM - 20);
+      const i = pool[Math.floor(Math.random() * pool.length)];
+      return C.SLOT_TOP + (i + 0.5) * SLOT_H + U.rand(-8, 8);
+    }
+
+    arrowHits(b) {
+      const hr = b.r * C.HIT_SCALE;
+      for (const a of this.arrows) {
+        if (a.warn > 0) continue;
         const tail = a.x - Math.sign(a.vx) * 34;
         if (U.segDist2(b.x, b.y, a.x, a.y, tail, a.y) < hr * hr) return true;
       }
-      this.arrows = this.arrows.filter((a) => a.x > -50 && a.x < this.w + 50);
       return false;
     }
 
     bounce(side) {
       this.score++;
+      const b = this.bird;
+      b.vx = Math.sign(b.vx) * BB.speedFor(this.score);
       const hit = this.walls[side];
       const other = this.walls[side === 'left' ? 'right' : 'left'];
       hit.retract();

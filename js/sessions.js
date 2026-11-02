@@ -130,7 +130,7 @@
     reset() {
       this.arena = new BB.Arena({ w: C.SOLO_W, seed: U.randomSeed(), diff: 'normal', theme: 'normal', skin: BB.getSkin(save().equippedSkin) });
       this.arena.showScore = false;
-      this.ai = new BB.Bot(this.arena, BB.BOTS[20]);
+      this.ai = new BB.Bot(this.arena);
       this.arena.start();
       this.timer = 0;
     }
